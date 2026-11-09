@@ -31,7 +31,11 @@ With **no keys at all** you get: the landing page, paste/upload/URL/YouTube/Driv
 
 1. **Supabase**: create a project, run `supabase/schema.sql` in the SQL editor, then set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
 2. **Payments**: set the PayFast / Yoco / Stripe variables from `.env.example`. Point webhooks at `/api/webhooks/payfast`, `/api/webhooks/yoco`, `/api/webhooks/stripe`.
-3. **Trial reminders**: set `RESEND_API_KEY`, `EMAIL_FROM` and `CRON_SECRET`. `vercel.json` runs `/api/cron/trial-reminders` daily (on other hosts, call it daily with `Authorization: Bearer $CRON_SECRET`).
+3. **Trial reminders**: set `RESEND_API_KEY`, `EMAIL_FROM` and `CRON_SECRET`. On Vercel, `vercel.json` runs the job daily. On Render, add repo secrets `CRON_SECRET` and `APP_URL` and the included GitHub Action (`.github/workflows/trial-reminders.yml`) calls it daily.
+
+## Deploy on Render
+
+`render.yaml` defines the web service (free plan, Node 22). Create a Blueprint from the repo, or use a Web Service with build `npm install --include=dev && npm run build` and start `npm start`, then fill in the env vars. The free plan sleeps when idle; use a paid plan to avoid the cold start.
 4. **AI summaries / notes / translate**: set `ANTHROPIC_API_KEY`. Without it, summaries fall back to a simple extractive summary and translation is disabled.
 5. **Voice cloning**: needs an ElevenLabs key with Instant Voice Cloning (server `ELEVENLABS_API_KEY`, or each user's own key in Settings). Edge TTS cannot clone voices.
 

@@ -1,0 +1,13 @@
+name: Trial reminders
+on:
+  schedule:
+    - cron: '0 6 * * *'   # daily, 08:00 South Africa time
+  workflow_dispatch:
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the reminder endpoint
+        run: |
+          curl -fsS -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/trial-reminders"
