@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   const evt = await req.json();
   if (evt?.type === 'payment.succeeded') {
     const m = evt.payload?.metadata || {};
-    if (m.user_id) await grantPremium(m.user_id, Number(m.months) || 1, 'yoco');
+    if (m.user_id) await grantPremium(m.user_id, Number(m.months) || 1, 'yoco', { ref: evt.payload?.id || evt.id, amountCents: evt.payload?.amount, currency: evt.payload?.currency || 'ZAR' });
   }
   return NextResponse.json({ ok: true });
 }

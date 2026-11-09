@@ -92,3 +92,13 @@ export const fmtTime = (s: number) => {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
   return h ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`;
 };
+
+// Make text nicer to hear: drop citation markers like [12] and say "link" instead of reading a web address letter by letter.
+export function cleanForSpeech(t: string): string {
+  return t
+    .replace(/\[\s*\d+(?:\s*[,–-]\s*\d+)*\s*\]/g, '')
+    .replace(/\(\s*(?:fig(?:ure)?|table)\.?\s*\d+[a-z]?\s*\)/gi, '')
+    .replace(/https?:\/\/\S+|www\.\S+/gi, 'link')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}

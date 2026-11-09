@@ -5,14 +5,15 @@ import { addUsage, createDoc, getUsage, listDocs } from '@/lib/store';
 import { FREE_LIMITS } from '@/lib/plans';
 import { useAccount } from '@/lib/useEntitlement';
 import LimitBanner from '@/components/LimitBanner';
+import { Icon } from '@/components/Icons';
 
 const TABS = [
-  ['paste', '✍️ Paste text'],
-  ['file', '📄 Upload'],
-  ['url', '🌐 Web link'],
-  ['youtube', '▶️ YouTube'],
-  ['cloud', '☁️ Drive / Dropbox'],
-  ['photo', '📸 Photo'],
+  ['paste', 'Paste text', 'paste'],
+  ['file', 'Upload', 'file'],
+  ['url', 'Web link', 'link'],
+  ['youtube', 'YouTube', 'video'],
+  ['cloud', 'Drive or Dropbox', 'cloud'],
+  ['photo', 'Photo', 'camera'],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 
@@ -37,7 +38,7 @@ export default function AppHome() {
   };
 
   async function open(title: string, body: string, source: string) {
-    if (!ent.premium && (await listDocs()).length >= FREE_LIMITS.maxDocs) { setLimit(true); setError(`Free library holds ${FREE_LIMITS.maxDocs} documents. Delete one in your Library or upgrade.`); setBusy(''); return; }
+    if (!ent.premium && (await listDocs()).length >= FREE_LIMITS.maxDocs) { setLimit(true); setError(`Your free library holds ${FREE_LIMITS.maxDocs} documents. Delete one in Library, or upgrade.`); setBusy(''); return; }
     const d = await createDoc(title, body, source);
     router.push(`/read/${d.id}`);
   }
@@ -45,18 +46,18 @@ export default function AppHome() {
   async function fromApi(init: RequestInit, counts: boolean) {
     setError('');
     if (counts && !guardImport()) return;
-    setBusy('Extracting text…');
+    setBusy('Extracting text');
     try {
       const r = await fetch('/api/extract', init);
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || 'Something went wrong');
+      if (!r.ok) throw new Error(j.error || 'Something went wrong. Try again.');
       if (counts) addUsage('imports', 1);
       await open(j.title, j.text, j.source);
     } catch (e: any) { setError(e.message); setBusy(''); }
   }
 
   async function onFile(f: File) {
-    if (!ent.premium && f.size > FREE_LIMITS.maxFileMB * 1024 * 1024) { setLimit(true); setError(`Free plan files are limited to ${FREE_LIMITS.maxFileMB}MB.`); return; }
+    if (!ent.premium && f.size > FREE_LIMITS.maxFileMB * 1024 * 1024) { setLimit(true); setError(`Free plan files can be up to ${FREE_LIMITS.maxFileMB} MB.`); return; }
     if (/^image\//.test(f.type)) return onPhoto(f);
     const fd = new FormData(); fd.append('file', f);
     await fromApi({ method: 'POST', body: fd }, false);
@@ -66,34 +67,36 @@ export default function AppHome() {
     setError('');
     if (!guardImport()) return;
     try {
-      setBusy('Reading the page (OCR)…');
+      setBusy('Reading the page');
       const { createWorker } = await import('tesseract.js');
       const worker = await createWorker('eng');
       const { data } = await worker.recognize(f);
       await worker.terminate();
       const t = data.text.replace(/-\n/g, '').replace(/\n(?!\n)/g, ' ').replace(/ {2,}/g, ' ').trim();
-      if (t.length < 5) throw new Error('Could not find any text in that photo. Try a sharper, well-lit shot.');
+      if (t.length < 5) throw new Error('No text found in that photo. Try a sharper shot in better light.');
       addUsage('imports', 1);
       await open('Photo ' + new Date().toLocaleDateString(), t, 'ocr');
     } catch (e: any) { setError(e.message); setBusy(''); }
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-center text-3xl font-extrabold sm:text-4xl">What do you want to <span className="text-brand-soft">listen</span> to?</h1>
-      <p className="mt-2 text-center text-zinc-400">Paste anything. Listen to anything.</p>
+    <div className="mx-auto max-w-3xl px-5 py-12 sm:py-16">
+      <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl">What should we read to you?</h1>
 
-      <div className="mt-8 flex gap-2 overflow-x-auto pb-2">
-        {TABS.map(([k, label]) => (
-          <button key={k} onClick={() => { setTab(k); setError(''); }} className={`whitespace-nowrap rounded-full border px-4 py-2 text-sm ${tab === k ? 'border-brand bg-brand/20 text-white' : 'border-line text-zinc-400 hover:text-white'}`}>{label}</button>
+      <div role="tablist" className="mt-8 flex gap-1 overflow-x-auto border-b border-line">
+        {TABS.map(([k, label, icon]) => (
+          <button key={k} role="tab" aria-selected={tab === k} onClick={() => { setTab(k); setError(''); }}
+            className={`-mb-px flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-3 text-sm transition-colors ${tab === k ? 'border-mark text-fg' : 'border-transparent text-mute hover:text-fg'}`}>
+            <Icon name={icon} size={16} />{label}
+          </button>
         ))}
       </div>
 
-      <div className="card mt-3">
+      <div className="pt-6">
         {tab === 'paste' && (
           <>
-            <textarea className="input min-h-[220px] resize-y" placeholder="Paste or type any text here…" value={text} onChange={(e) => setText(e.target.value)} />
-            <button disabled={text.trim().length < 3 || !!busy} onClick={() => open(text.trim().split('\n')[0].slice(0, 60), text.trim(), 'paste')} className="btn btn-primary mt-3 w-full !py-3.5 text-base">▶ Listen</button>
+            <textarea className="input min-h-[240px] resize-y font-read text-lg leading-relaxed" placeholder="Paste or type text here" value={text} onChange={(e) => setText(e.target.value)} />
+            <button disabled={text.trim().length < 3 || !!busy} onClick={() => open(text.trim().split('\n')[0].slice(0, 60), text.trim(), 'paste')} className="btn btn-primary mt-4 !px-6 !py-3">Listen</button>
           </>
         )}
 
@@ -101,33 +104,46 @@ export default function AppHome() {
           <div
             onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)}
             onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files?.[0]; if (f) onFile(f); }}
-            onClick={() => fileRef.current?.click()}
-            className={`grid min-h-[220px] cursor-pointer place-items-center rounded-xl border-2 border-dashed p-8 text-center transition ${drag ? 'border-brand bg-brand/10' : 'border-line'}`}>
-            <div><div className="text-4xl">📂</div><p className="mt-2 font-semibold">Drag & drop or click to upload</p><p className="text-sm text-zinc-400">PDF, DOCX, EPUB, TXT{!ent.premium && ` · up to ${FREE_LIMITS.maxFileMB}MB on free`}</p></div>
+            onClick={() => fileRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && fileRef.current?.click()}
+            className={`grid min-h-[240px] cursor-pointer place-items-center rounded-xl border border-dashed p-8 text-center transition-colors ${drag ? 'border-mark bg-panel' : 'border-line hover:border-mute'}`}>
+            <div>
+              <Icon name="download" size={28} className="mx-auto rotate-180 text-mark" />
+              <p className="mt-3 font-semibold">Drop a file here, or click to choose one</p>
+              <p className="mt-1 text-sm text-mute">PDF, Word, EPUB or text{!ent.premium && `, up to ${FREE_LIMITS.maxFileMB} MB`}</p>
+            </div>
             <input ref={fileRef} type="file" hidden accept=".pdf,.docx,.epub,.txt,.md,.html,image/*" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
           </div>
         )}
 
         {(tab === 'url' || tab === 'youtube' || tab === 'cloud') && (
           <>
-            <input className="input" placeholder={tab === 'url' ? 'https://… paste an article link' : tab === 'youtube' ? 'https://youtube.com/watch?v=… (uses the transcript)' : 'Public Google Drive or Dropbox share link'} value={link} onChange={(e) => setLink(e.target.value)} />
-            {tab === 'cloud' && <p className="mt-2 text-xs text-zinc-400">Set the file to "Anyone with the link" then paste the link. Works with PDF, DOCX, EPUB, TXT and Google Docs.</p>}
-            <button disabled={!link.trim() || !!busy} onClick={() => fromApi({ method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: tab, value: link.trim() }) }, tab !== 'cloud')} className="btn btn-primary mt-3 w-full !py-3.5 text-base">▶ Fetch & listen</button>
+            <input className="input" placeholder={tab === 'url' ? 'https://example.com/article' : tab === 'youtube' ? 'https://youtube.com/watch?v=VIDEO_ID' : 'Share link from Google Drive or Dropbox'} value={link} onChange={(e) => setLink(e.target.value)} />
+            <p className="mt-2 text-sm text-mute">
+              {tab === 'url' && 'We find the main article text and leave out menus and ads.'}
+              {tab === 'youtube' && 'We read the video transcript, so the video needs captions.'}
+              {tab === 'cloud' && 'Set the file to “Anyone with the link” first. PDF, Word, EPUB, text and Google Docs work.'}
+            </p>
+            <button disabled={!link.trim() || !!busy} onClick={() => fromApi({ method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: tab, value: link.trim() }) }, tab !== 'cloud')} className="btn btn-primary mt-4 !px-6 !py-3">Fetch and listen</button>
           </>
         )}
 
         {tab === 'photo' && (
-          <div onClick={() => photoRef.current?.click()} className="grid min-h-[220px] cursor-pointer place-items-center rounded-xl border-2 border-dashed border-line p-8 text-center">
-            <div><div className="text-4xl">📸</div><p className="mt-2 font-semibold">Take a photo of a page or book</p><p className="text-sm text-zinc-400">We'll read the text and speak it. Good light + flat page works best.</p></div>
+          <div onClick={() => photoRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && photoRef.current?.click()}
+            className="grid min-h-[240px] cursor-pointer place-items-center rounded-xl border border-dashed border-line p-8 text-center transition-colors hover:border-mute">
+            <div>
+              <Icon name="camera" size={28} className="mx-auto text-mark" />
+              <p className="mt-3 font-semibold">Photograph a page</p>
+              <p className="mt-1 text-sm text-mute">We read the text and speak it. A flat page in good light works best.</p>
+            </div>
             <input ref={photoRef} type="file" hidden accept="image/*" capture="environment" onChange={(e) => e.target.files?.[0] && onPhoto(e.target.files[0])} />
           </div>
         )}
 
-        {busy && <p className="mt-3 animate-pulse text-center text-sm text-brand-glow">{busy}</p>}
-        {error && <p className="mt-3 text-center text-sm text-red-400">{error}</p>}
+        {busy && <p className="mt-4 flex items-center gap-3 text-sm text-mute"><span className="spin !h-4 !w-4" />{busy}</p>}
+        {error && <p role="alert" className="mt-4 text-sm text-danger">{error}</p>}
       </div>
 
-      {limit && <div className="mt-4"><LimitBanner message={`Free plan limits: ${FREE_LIMITS.importsPerDay} web / YouTube / photo imports per day, ${FREE_LIMITS.maxDocs} documents, ${FREE_LIMITS.maxFileMB}MB files.`} /></div>}
+      {limit && <div className="mt-6"><LimitBanner message={`Free plan limits: ${FREE_LIMITS.importsPerDay} web, YouTube or photo imports a day, ${FREE_LIMITS.maxDocs} documents, ${FREE_LIMITS.maxFileMB} MB files.`} /></div>}
     </div>
   );
 }

@@ -7,7 +7,6 @@ export default function ThemeSync() {
     const apply = () => {
       const s = getSettings();
       document.documentElement.classList.toggle('light', s.theme === 'light');
-      document.documentElement.classList.toggle('dark', s.theme === 'dark');
     };
     apply();
     window.addEventListener('voxora:settings', apply);

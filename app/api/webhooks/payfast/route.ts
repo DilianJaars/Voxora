@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
   if (params.get('payment_status') === 'COMPLETE') {
     const [userId, months] = (params.get('m_payment_id') || '').split(':');
-    if (userId) await grantPremium(userId, Number(months) || 1, 'payfast');
+    if (userId) await grantPremium(userId, Number(months) || 1, 'payfast', { ref: params.get('pf_payment_id') || undefined, amountCents: Math.round(parseFloat(params.get('amount_gross') || '0') * 100), currency: 'ZAR' });
   }
   return new NextResponse('ok');
 }

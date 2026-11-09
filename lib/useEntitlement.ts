@@ -4,7 +4,7 @@ import { supabaseBrowser } from './supabase';
 import { computeEntitlement, Entitlement } from './plans';
 
 export function useAccount() {
-  const [state, setState] = useState<{ loading: boolean; email?: string; token?: string; ent: Entitlement; referralCode?: string }>({
+  const [state, setState] = useState<{ loading: boolean; email?: string; token?: string; ent: Entitlement; referralCode?: string; user?: { id: string; email?: string; createdAt?: string; lastSignIn?: string }; profile?: any }>({
     loading: true, ent: { premium: false, source: 'free' },
   });
   useEffect(() => {
@@ -13,8 +13,8 @@ export function useAccount() {
     const load = async () => {
       const { data: { session } } = await sb.auth.getSession();
       if (!session) { setState({ loading: false, ent: { premium: false, source: 'free' } }); return; }
-      const { data: p } = await sb.from('profiles').select('premium_until,trial_ends_at,referral_bonus_until,referral_code').eq('id', session.user.id).maybeSingle();
-      setState({ loading: false, email: session.user.email, token: session.access_token, ent: computeEntitlement(p), referralCode: p?.referral_code });
+      const { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+      setState({ loading: false, email: session.user.email, token: session.access_token, ent: computeEntitlement(p), referralCode: p?.referral_code, profile: p, user: { id: session.user.id, email: session.user.email, createdAt: session.user.created_at, lastSignIn: session.user.last_sign_in_at } });
     };
     load();
     const { data: sub } = sb.auth.onAuthStateChange(() => load());

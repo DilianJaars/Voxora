@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     const inv: any = evt.data.object;
     const userId = inv.subscription_details?.metadata?.user_id || inv.lines?.data?.[0]?.metadata?.user_id;
     const interval = inv.lines?.data?.[0]?.price?.recurring?.interval;
-    if (userId) await grantPremium(userId, interval === 'year' ? 12 : 1, 'stripe');
+    if (userId) await grantPremium(userId, interval === 'year' ? 12 : 1, 'stripe', { ref: inv.id, amountCents: inv.amount_paid, currency: inv.currency });
   }
   return NextResponse.json({ received: true });
 }

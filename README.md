@@ -25,6 +25,9 @@ With **no keys at all** you get: the landing page, paste/upload/URL/YouTube/Driv
 | Premium: unlimited limits, 3.5x, Smart Speed, offline, summaries, notes, translate, share link, cloning | reader + `app/api/*` |
 | Payments: PayFast (cards/SnapScan/EFT), Yoco, Stripe, instant unlock via webhooks | `app/api/checkout`, `app/api/webhooks/*` |
 | **2 months free for new customers** + reminders (7 days, 1 day, trial ended) | `supabase/schema.sql`, `app/api/cron/trial-reminders`, `components/TrialBanner.tsx` |
+| Personal dashboard: membership days left, months paid, payment history, today's limits, 30-day listening chart, streak, daily goal, referrals | `app/dashboard` |
+| Account security: change password, sign out of all devices, download my data, delete account, rate limits, security headers | `app/api/account/*`, `lib/ratelimit.ts`, `next.config.mjs` |
+| Reader extras: keyboard shortcuts, sleep timer, skip citations and web addresses, installable app (PWA) | `app/read/[id]`, `app/manifest.ts`, `public/sw.js` |
 | Refer a friend: 1 month Premium free | DB trigger in `supabase/schema.sql`, Settings page |
 
 ## Setup for the full product
@@ -46,7 +49,9 @@ Every new account gets `trial_ends_at = now + 2 months` (set by the database on 
 
 ## Notes and honest limits
 
-- **Daily limits** (listening time, downloads, imports) are enforced in the browser for now, so a determined user could bypass them. Premium *voices*, AI features, cloning and sharing are enforced on the server. Move the counters into a Supabase table if you need strict enforcement.
+- **Daily limits** (listening time, downloads, imports) are still enforced in the browser, so a determined user could bypass them. Signed-in usage is also recorded in `usage_daily` (increase-only, through `add_usage()`), which powers the dashboard and is the base for server-side enforcement later. Premium *voices*, AI features, cloning and sharing are already enforced on the server.
+- **Re-run `supabase/schema.sql`** after pulling this version: it adds the `payments` and `usage_daily` tables the dashboard reads. Webhook retries are ignored by payment id, so nobody is credited twice.
+- **Security headers** are set in `next.config.mjs`. A strict Content-Security-Policy is not set because the photo reader loads OCR files from a CDN; add one once you host those yourself.
 - **Sentence highlighting** is timed proportionally within each audio chunk (not word-level timestamps), which is accurate enough for reading along.
 - **Smart Speed** shortens the generated pauses between sentences rather than editing silence out of audio.
 - **Not built yet:** Chrome extension (listed as "future"), and Google Drive / Dropbox *OAuth pickers* (public share links work today).

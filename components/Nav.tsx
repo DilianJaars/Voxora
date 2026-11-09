@@ -1,14 +1,14 @@
 'use client';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { useAccount } from '@/lib/useEntitlement';
 import { supabaseBrowser } from '@/lib/supabase';
+import { Bars } from './Icons';
 
 export function Logo() {
   return (
-    <span className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
-      <span className="grid h-8 w-8 place-items-center rounded-xl bg-brand text-white">
-        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-      </span>
+    <span className="flex items-center gap-2.5 text-[1.35rem] font-bold tracking-tight">
+      <Bars className="text-mark !h-5" />
       Voxora
     </span>
   );
@@ -16,19 +16,28 @@ export function Logo() {
 
 export default function Nav() {
   const acct = useAccount();
+  const [install, setInstall] = useState<any>(null);
+  useEffect(() => {
+    const on = (e: Event) => { e.preventDefault(); setInstall(e); };
+    window.addEventListener('beforeinstallprompt', on);
+    return () => window.removeEventListener('beforeinstallprompt', on);
+  }, []);
+  const link = 'rounded-md px-2.5 py-2 text-sm text-mute transition-colors hover:text-fg';
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-bg/80 backdrop-blur">
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <Link href="/"><Logo /></Link>
-        <div className="flex items-center gap-1 text-sm sm:gap-3">
-          <Link href="/app" className="rounded-full px-3 py-2 text-zinc-300 hover:text-white">Listen</Link>
-          <Link href="/library" className="rounded-full px-3 py-2 text-zinc-300 hover:text-white">Library</Link>
-          <Link href="/pricing" className="hidden rounded-full px-3 py-2 text-zinc-300 hover:text-white sm:block">Pricing</Link>
-          <Link href="/settings" className="hidden rounded-full px-3 py-2 text-zinc-300 hover:text-white sm:block">Settings</Link>
+    <header className="sticky top-0 z-30 border-b border-line bg-ink/85 backdrop-blur">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
+        <Link href="/" aria-label="Voxora home"><Logo /></Link>
+        <div className="flex items-center gap-1">
+          <Link href="/app" className={link}>Listen</Link>
+          <Link href="/library" className={link}>Library</Link>
+          {acct.email && <Link href="/dashboard" className={link}>Dashboard</Link>}
+          <Link href="/pricing" className={`${link} hidden sm:block`}>Pricing</Link>
+          <Link href="/settings" className={`${link} hidden sm:block`}>Settings</Link>
+          {install && <button className={`${link} hidden md:block`} onClick={async () => { install.prompt(); await install.userChoice; setInstall(null); }}>Install app</button>}
           {acct.email ? (
-            <button className="btn btn-ghost !py-1.5" onClick={() => supabaseBrowser()?.auth.signOut()}>Sign out</button>
+            <button className="btn btn-quiet ml-2 !py-1.5" onClick={() => supabaseBrowser()?.auth.signOut()}>Sign out</button>
           ) : (
-            <Link href="/login" className="btn btn-primary !py-1.5">Start free</Link>
+            <Link href="/login" className="btn btn-primary ml-2 !py-1.5">Sign up</Link>
           )}
         </div>
       </nav>

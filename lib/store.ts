@@ -53,8 +53,10 @@ export type Settings = {
   elevenKey?: string;
   customVoices: { id: string; name: string; provider: 'elevenlabs' }[];
   smartSpeed: boolean;
+  cleanText: boolean;         // skip citations and web addresses when reading
+  goalMin: number;            // daily listening goal, minutes
 };
-export const DEFAULT_SETTINGS: Settings = { voice: 'jenny', speed: 1, theme: 'dark', font: 'sans', size: 20, customVoices: [], smartSpeed: false };
+export const DEFAULT_SETTINGS: Settings = { voice: 'jenny', speed: 1, theme: 'dark', font: 'serif', size: 20, customVoices: [], smartSpeed: false, cleanText: true, goalMin: 20 };
 export const getSettings = (): Settings => {
   try { return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem('voxora.settings') || '{}') }; } catch { return DEFAULT_SETTINGS; }
 };
@@ -66,6 +68,13 @@ export const setSettings = (patch: Partial<Settings>) => {
 };
 
 // ---------- daily usage ----------
+import { supabaseBrowser } from './supabase';
+const pending: Record<string, number> = { listen: 0, downloads: 0, imports: 0 };
+async function flush(kind: string) {
+  const n = pending[kind]; if (!n) return;
+  pending[kind] = 0;
+  try { await supabaseBrowser()?.rpc('add_usage', { kind, n }); } catch {}
+}
 type Usage = { day: string; listen: number; downloads: number; imports: number };
 const today = () => new Date().toISOString().slice(0, 10);
 export const getUsage = (): Usage => {
@@ -80,5 +89,7 @@ export const addUsage = (k: 'listen' | 'downloads' | 'imports', n: number) => {
   u[k] += n;
   localStorage.setItem('voxora.usage', JSON.stringify(u));
   window.dispatchEvent(new Event('voxora:usage'));
+  pending[k] += n;
+  if (k !== 'listen' || pending.listen >= 15) flush(k);
   return u;
 };

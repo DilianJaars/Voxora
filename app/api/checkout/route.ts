@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { userFromRequest } from '@/lib/supabaseAdmin';
 import { PLAN } from '@/lib/plans';
+import { limited, tooMany } from '@/lib/ratelimit';
 
 export const runtime = 'nodejs';
 
@@ -15,6 +16,7 @@ function payfastSignature(data: Record<string, string>, passphrase?: string) {
 
 // POST { plan: 'monthly'|'yearly', provider: 'payfast'|'yoco'|'stripe' }
 export async function POST(req: Request) {
+  if (limited(req, 'checkout', 10)) return tooMany();
   const u = await userFromRequest(req);
   if (!u) return NextResponse.json({ error: 'Please sign in first so we can unlock Premium on your account.' }, { status: 401 });
   const { plan = 'monthly', provider = 'payfast' } = await req.json();

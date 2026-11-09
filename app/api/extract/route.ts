@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { limited, tooMany } from '@/lib/ratelimit';
 import { directDownloadUrl, extractFromBuffer, extractUrl, extractYoutube } from '@/lib/extract';
 
 export const runtime = 'nodejs';
@@ -7,6 +8,7 @@ export const maxDuration = 60;
 const MAX_BYTES = 50 * 1024 * 1024;
 
 export async function POST(req: Request) {
+  if (limited(req, 'extract', 20)) return tooMany();
   try {
     const ct = req.headers.get('content-type') || '';
     let result;

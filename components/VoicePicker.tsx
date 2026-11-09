@@ -2,6 +2,7 @@
 import { useRef, useState } from 'react';
 import { VOICES } from '@/lib/voices';
 import type { Settings } from '@/lib/store';
+import { Bars, Icon, PlayIcon } from './Icons';
 
 type Props = {
   value: string;
@@ -39,38 +40,38 @@ export default function VoicePicker({ value, premium, token, custom, elevenKey, 
     } catch { setPlaying(null); }
   }
 
+  const row = (key: string, selected: boolean, onPick: () => void, content: React.ReactNode, previewBody: Record<string, unknown>) => (
+    <li key={key} className={`flex items-center gap-3 border-t border-line py-3 pl-3 ${selected ? 'border-l-2 border-l-mark bg-panel2/60' : 'border-l-2 border-l-transparent'}`}>
+      <button onClick={onPick} className="min-w-0 flex-1 text-left">{content}</button>
+      <button className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-line text-fg transition-colors hover:border-mark hover:text-mark" aria-label="Preview voice" onClick={() => preview(key, previewBody)}>
+        {playing === key ? <Bars live className="text-mark !h-3.5" /> : <PlayIcon size={14} />}
+      </button>
+    </li>
+  );
+
   return (
     <div>
-      <div className="mb-3 flex flex-wrap gap-2">
+      <div className="mb-2 flex flex-wrap gap-1.5">
         {FILTERS.map((f) => (
-          <button key={f} onClick={() => setFilter(f)} className={`rounded-full border px-3 py-1 text-xs ${filter === f ? 'border-brand bg-brand/20 text-white' : 'border-line text-zinc-400'}`}>{f}</button>
+          <button key={f} onClick={() => setFilter(f)} aria-pressed={filter === f} className={`rounded-md px-2.5 py-1 text-xs transition-colors ${filter === f ? 'bg-mark text-onmark font-semibold' : 'text-mute hover:text-fg'}`}>{f}</button>
         ))}
       </div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {custom.map((c) => (
-          <div key={c.id} onClick={() => onChange('custom:' + c.id)} className={`flex cursor-pointer items-center justify-between rounded-xl border p-3 ${value === 'custom:' + c.id ? 'border-brand bg-brand/10' : 'border-line bg-panel2'}`}>
-            <div><div className="font-semibold">{c.name} <span className="text-xs text-brand-soft">cloned</span></div><div className="text-xs text-zinc-400">Your cloned voice</div></div>
-            <button className="btn btn-ghost !px-3 !py-1.5" onClick={(e) => { e.stopPropagation(); preview('c' + c.id, { elevenVoiceId: c.id, elevenKey }); }}>{playing === 'c' + c.id ? '…' : '▶'}</button>
-          </div>
-        ))}
+      <ul>
+        {custom.map((c) => row('c' + c.id, value === 'custom:' + c.id, () => onChange('custom:' + c.id),
+          <><div className="font-semibold">{c.name}</div><div className="text-xs text-mute">Your cloned voice</div></>, { elevenVoiceId: c.id, elevenKey }))}
         {list.map((v) => {
           const locked = !v.free && !premium;
-          return (
-            <div key={v.id} onClick={() => (locked ? onLocked() : onChange(v.id))}
-              className={`flex cursor-pointer items-center justify-between gap-2 rounded-xl border p-3 transition ${value === v.id ? 'border-brand bg-brand/10' : 'border-line bg-panel2 hover:border-zinc-600'}`}>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 font-semibold">
-                  {v.name}
-                  <span className="rounded bg-zinc-700/60 px-1.5 py-0.5 text-[10px] font-medium text-zinc-300">{v.accent} · {v.gender[0]}</span>
-                  {locked ? <span title="Premium">🔒</span> : v.free ? <span className="text-[10px] text-emerald-400">FREE</span> : null}
-                </div>
-                <div className="truncate text-xs text-zinc-400">{v.style}</div>
+          return row(v.id, value === v.id, () => (locked ? onLocked() : onChange(v.id)),
+            <>
+              <div className="flex items-center gap-2 font-semibold">
+                {v.name}
+                {locked && <Icon name="lock" size={13} className="text-mute" />}
+                {v.free && <span className="text-xs font-normal text-ok">Free</span>}
               </div>
-              <button className="btn btn-ghost !px-3 !py-1.5" aria-label={`Preview ${v.name}`} onClick={(e) => { e.stopPropagation(); preview(v.id, { voice: v.id }); }}>{playing === v.id ? '…' : '▶'}</button>
-            </div>
-          );
+              <div className="truncate text-xs text-mute">{v.style}. {v.accent}, {v.gender.toLowerCase()}</div>
+            </>, { voice: v.id });
         })}
-      </div>
+      </ul>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { edgeSpeak, elevenSpeak } from '@/lib/tts';
 import { getVoice, LANGUAGES } from '@/lib/voices';
 import { userFromRequest } from '@/lib/supabaseAdmin';
+import { limited, tooMany } from '@/lib/ratelimit';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -10,6 +11,7 @@ export const maxDuration = 60;
 // Free voices are open to everyone; premium + cloned voices need an active premium/trial account
 // (or the caller's own ElevenLabs key, which they pay for themselves).
 export async function POST(req: Request) {
+  if (limited(req, 'tts', 90)) return tooMany();
   try {
     const body = await req.json();
     const text: string = String(body.text || '').slice(0, 3000);

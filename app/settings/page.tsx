@@ -4,6 +4,7 @@ import { getSettings, Settings, setSettings } from '@/lib/store';
 import { useAccount } from '@/lib/useEntitlement';
 import { PLAN } from '@/lib/plans';
 import Link from 'next/link';
+import { Icon } from '@/components/Icons';
 
 export default function SettingsPage() {
   const acct = useAccount();
@@ -30,52 +31,52 @@ export default function SettingsPage() {
     setBusy(false);
     if (!r.ok) return setMsg(j.error || 'Cloning failed');
     upd({ customVoices: [...s.customVoices, { id: j.id, name: j.name, provider: 'elevenlabs' }], voice: 'custom:' + j.id });
-    setMsg(`Cloned "${j.name}" ✓ It's selected as your voice.`);
+    setMsg(`Cloned "${j.name}". It is now your selected voice.`);
   }
 
   const link = ref.code && typeof location !== 'undefined' ? `${location.origin}/login?ref=${ref.code}` : '';
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-10">
-      <h1 className="text-3xl font-extrabold">Settings</h1>
+    <div className="mx-auto max-w-2xl px-5 py-12 sm:py-16">
+      <h1 className="mb-4 text-3xl font-extrabold tracking-tight sm:text-4xl">Settings</h1>
 
-      <section className="card space-y-3">
-        <h2 className="font-bold">Voice engine</h2>
-        <p className="text-sm text-zinc-400">Voxora uses Edge TTS by default — free, no key needed. Add an ElevenLabs API key to use your own premium engine and cloned voices.</p>
+      <section className="space-y-3 border-t border-line py-8">
+        <h2 className="text-lg font-bold">Voice engine</h2>
+        <p className="text-sm text-mute">Voxora uses Edge TTS by default — free, no key needed. Add an ElevenLabs API key to use your own premium engine and cloned voices.</p>
         <input className="input" type="password" placeholder="ElevenLabs API key (optional)" value={s.elevenKey || ''} onChange={(e) => upd({ elevenKey: e.target.value })} />
-        <p className="text-xs text-zinc-500">Stored only in this browser.</p>
+        <p className="text-xs text-mute">Saved only in this browser.</p>
       </section>
 
-      <section className="card space-y-3">
-        <h2 className="font-bold">🧬 Clone a voice {!acct.ent.premium && <span className="text-xs text-brand-soft">Premium</span>}</h2>
-        <p className="text-sm text-zinc-400">Upload a clean 10+ second sample of the voice (only voices you have permission to clone). Requires an ElevenLabs key.</p>
+      <section className="space-y-3 border-t border-line py-8">
+        <h2 className="text-lg font-bold">Clone a voice {!acct.ent.premium && <span className="ml-1 inline-flex items-center gap-1 text-xs font-normal text-mute"><Icon name="lock" size={12} />Premium</span>}</h2>
+        <p className="text-sm text-mute">Upload a clean 10+ second sample of the voice (only voices you have permission to clone). Requires an ElevenLabs key.</p>
         <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name this voice" />
         <input type="file" accept="audio/*" disabled={busy} onChange={(e) => e.target.files?.[0] && clone(e.target.files[0])} className="text-sm" />
-        {busy && <p className="animate-pulse text-sm text-brand-glow">Cloning…</p>}
-        {msg && <p className="text-sm text-amber-300">{msg}</p>}
+        {busy && <p className="text-sm text-mute">Cloning</p>}
+        {msg && <p className="text-sm text-mute">{msg}</p>}
         {s.customVoices.length > 0 && (
           <ul className="space-y-1 text-sm">{s.customVoices.map((c) => (
-            <li key={c.id} className="flex justify-between"><span>{c.name}</span><button className="text-zinc-500 hover:text-red-400" onClick={() => upd({ customVoices: s.customVoices.filter((x) => x.id !== c.id) })}>remove</button></li>
+            <li key={c.id} className="flex justify-between"><span>{c.name}</span><button className="text-mute hover:text-danger" onClick={() => upd({ customVoices: s.customVoices.filter((x) => x.id !== c.id) })}>remove</button></li>
           ))}</ul>
         )}
       </section>
 
-      <section className="card space-y-3">
-        <h2 className="font-bold">🎁 Refer a friend — get 1 month Premium free</h2>
+      <section className="space-y-3 border-t border-line py-8">
+        <h2 className="text-lg font-bold">Refer a friend and get 1 month of Premium</h2>
         {acct.email ? (
           <>
-            <p className="text-sm text-zinc-400">When a friend signs up with your link, you both win: they get {PLAN.trialMonths} free months and you get 1 more month.</p>
-            <div className="flex gap-2"><input readOnly className="input" value={link} /><button className="btn btn-primary" onClick={() => navigator.clipboard.writeText(link)}>Copy</button></div>
-            <p className="text-xs text-zinc-500">Friends joined: {ref.friends ?? 0}</p>
+            <p className="text-sm text-mute">When a friend signs up with your link, you both win: they get {PLAN.trialMonths} free months and you get 1 more month.</p>
+            <div className="flex gap-2"><input readOnly className="input" value={link} /><button className="btn btn-quiet" onClick={() => navigator.clipboard.writeText(link)}>Copy link</button></div>
+            <p className="text-xs text-mute">Friends who joined: {ref.friends ?? 0}</p>
           </>
-        ) : <p className="text-sm text-zinc-400"><Link className="underline" href="/login">Create a free account</Link> to get your referral link.</p>}
+        ) : <p className="text-sm text-mute"><Link className="underline" href="/login">Create a free account</Link> to get your referral link.</p>}
       </section>
 
-      <section className="card space-y-1 text-sm">
-        <h2 className="font-bold">Account</h2>
+      <section className="space-y-1 border-t border-line py-8 text-sm">
+        <h2 className="text-lg font-bold">Account</h2>
         {acct.email ? (
-          <p className="text-zinc-400">{acct.email} · {acct.ent.source === 'paid' ? 'Premium' : acct.ent.source === 'trial' ? `Free trial (${acct.ent.daysLeft} days left)` : acct.ent.source === 'referral' ? `Referral bonus (${acct.ent.daysLeft} days left)` : 'Free plan'}</p>
-        ) : <p className="text-zinc-400">Not signed in.</p>}
+          <p className="text-mute">{acct.email} · {acct.ent.source === 'paid' ? 'Premium' : acct.ent.source === 'trial' ? `Free trial (${acct.ent.daysLeft} days left)` : acct.ent.source === 'referral' ? `Referral bonus (${acct.ent.daysLeft} days left)` : 'Free plan'}</p>
+        ) : <p className="text-mute">Not signed in.</p>}
       </section>
     </div>
   );

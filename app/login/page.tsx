@@ -25,32 +25,32 @@ function Form() {
     setBusy(false);
     if (res.error) return setMsg(res.error.message);
     if (mode === 'signup' && !res.data.session) return setMsg('Check your email to confirm your account, then sign in.');
-    router.push('/app');
+    router.push('/dashboard');
   }
 
-  if (!supabaseEnabled) return <p className="card text-sm text-zinc-400">Accounts are not configured yet. Set the Supabase keys in <code>.env.local</code> (see README). You can still use Voxora without an account.</p>;
+  if (!supabaseEnabled) return <p className="border-l-2 border-mark bg-panel px-4 py-3 text-sm text-mute">Accounts are not switched on yet. You can still use Voxora without one.</p>;
 
+  const seg = (on: boolean) => `flex-1 rounded-md py-2 text-sm transition-colors ${on ? 'bg-mark font-semibold text-onmark' : 'text-mute hover:text-fg'}`;
   return (
-    <form onSubmit={submit} className="card space-y-3">
-      <div className="flex rounded-full border border-line p-1 text-sm">
-        {(['signup', 'signin'] as const).map((m) => (
-          <button type="button" key={m} onClick={() => setMode(m)} className={`flex-1 rounded-full py-2 ${mode === m ? 'bg-brand text-white' : 'text-zinc-400'}`}>{m === 'signup' ? 'Create account' : 'Sign in'}</button>
-        ))}
+    <form onSubmit={submit} className="space-y-4">
+      <div className="flex rounded-lg border border-line p-1">
+        <button type="button" onClick={() => setMode('signup')} className={seg(mode === 'signup')}>Create account</button>
+        <button type="button" onClick={() => setMode('signin')} className={seg(mode === 'signin')}>Sign in</button>
       </div>
-      <input className="input" type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <input className="input" type="password" required minLength={6} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
-      {mode === 'signup' && <input className="input" placeholder="Referral code (optional)" value={ref} onChange={(e) => setRef(e.target.value)} />}
-      <button disabled={busy} className="btn btn-primary w-full">{busy ? '…' : mode === 'signup' ? `Start ${PLAN.trialMonths} months free` : 'Sign in'}</button>
-      {msg && <p className="text-sm text-amber-300">{msg}</p>}
+      <label className="block text-sm">Email<input className="input mt-1.5" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+      <label className="block text-sm">Password<input className="input mt-1.5" type="password" required minLength={6} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+      {mode === 'signup' && <label className="block text-sm">Referral code, if you have one<input className="input mt-1.5" value={ref} onChange={(e) => setRef(e.target.value)} /></label>}
+      <button disabled={busy} className="btn btn-primary w-full !py-3">{busy ? 'One moment' : mode === 'signup' ? `Start ${PLAN.trialMonths} free months` : 'Sign in'}</button>
+      {msg && <p role="alert" className="text-sm text-danger">{msg}</p>}
     </form>
   );
 }
 
 export default function Login() {
   return (
-    <div className="mx-auto max-w-md px-4 py-16">
-      <h1 className="mb-2 text-3xl font-extrabold">Welcome to Voxora</h1>
-      <p className="mb-6 text-zinc-400">New accounts get {PLAN.trialMonths} months of Premium free. We'll remind you before it ends.</p>
+    <div className="mx-auto max-w-md px-5 py-14 sm:py-20">
+      <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Start with {PLAN.trialMonths} months of Premium</h1>
+      <p className="mb-8 mt-3 text-mute">No card needed. We email you before the trial ends.</p>
       <Suspense><Form /></Suspense>
     </div>
   );

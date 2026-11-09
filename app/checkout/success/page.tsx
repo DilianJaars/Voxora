@@ -1,11 +1,10 @@
 import Link from 'next/link';
 export default function Success() {
   return (
-    <div className="mx-auto max-w-md px-4 py-24 text-center">
-      <div className="text-5xl">🎉</div>
-      <h1 className="mt-4 text-3xl font-extrabold">You're Premium!</h1>
-      <p className="mt-2 text-zinc-400">Your payment is being confirmed — Premium unlocks the moment it clears (usually a few seconds). Refresh if you don't see it yet.</p>
-      <Link href="/app" className="btn btn-primary mt-6">Start listening</Link>
+    <div className="mx-auto max-w-md px-5 py-20 sm:py-28">
+      <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Payment received</h1>
+      <p className="mt-3 text-mute">Premium unlocks as soon as the payment is confirmed, usually within seconds. If you do not see it yet, refresh the page.</p>
+      <Link href="/app" className="btn btn-primary mt-8">Start listening</Link>
     </div>
   );
 }
