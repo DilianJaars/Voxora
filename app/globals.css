@@ -1,0 +1,23 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:wght@400;500&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+html.light { color-scheme: light; }
+body { @apply bg-bg text-zinc-100 antialiased; }
+html.light body { background: #fafafa; color: #18181b; }
+html.light .bg-panel { background: #fff; } html.light .bg-panel2 { background: #f4f4f5; }
+html.light .border-line { border-color: #e4e4e7; } html.light .text-zinc-400 { color: #52525b; }
+
+.btn { @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition active:scale-95; }
+.btn-primary { @apply bg-brand text-white hover:bg-brand-soft; box-shadow: 0 8px 30px -8px rgba(139,92,246,.7); }
+.btn-ghost { @apply border border-line bg-panel text-zinc-200 hover:bg-panel2; }
+.card { @apply rounded-2xl border border-line bg-panel p-5; }
+.input { @apply w-full rounded-xl border border-line bg-panel2 px-4 py-3 text-sm outline-none focus:border-brand; }
+.glow { background: radial-gradient(60% 50% at 50% 0%, rgba(139,92,246,.35), transparent 70%); }
+.sent { @apply cursor-pointer rounded px-0.5 transition-colors; }
+.sent:hover { background: rgba(139,92,246,.12); }
+.sent.active { background: rgba(139,92,246,.35); box-shadow: 0 0 0 3px rgba(139,92,246,.35); border-radius: 4px; }
+@font-face { font-family: 'OpenDyslexic'; src: local('OpenDyslexic'), local('OpenDyslexic3'); }
+input[type=range] { accent-color: #8b5cf6; }
