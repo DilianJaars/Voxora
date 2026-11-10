@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin, userFromRequest } from '@/lib/supabaseAdmin';
+import { noAdmin, supabaseAdmin, userFromRequest } from '@/lib/supabaseAdmin';
 import { limited, tooMany } from '@/lib/ratelimit';
 
 export const runtime = 'nodejs';
@@ -8,8 +8,9 @@ export const runtime = 'nodejs';
 export async function GET(req: Request) {
   if (limited(req, 'export', 5)) return tooMany();
   const u = await userFromRequest(req);
+  if (!u) return NextResponse.json({ error: 'Sign in required' }, { status: 401 });
   const admin = supabaseAdmin();
-  if (!u || !admin) return NextResponse.json({ error: 'Sign in required' }, { status: 401 });
+  if (!admin) return noAdmin();
   const [profile, docs, payments, usage, voices] = await Promise.all([
     admin.from('profiles').select('email,premium_until,trial_ends_at,referral_bonus_until,referral_code,created_at').eq('id', u.id).maybeSingle(),
     admin.from('documents').select('id,title,source,text,position,summary,notes,created_at,updated_at').eq('user_id', u.id),

@@ -3,9 +3,17 @@ import Link from 'next/link';
 import { useAccount } from '@/lib/useEntitlement';
 import { PLAN } from '@/lib/plans';
 
-// Shows trial status; becomes a reminder in the last 7 days before the free membership runs out.
+// Trial reminder in the last 7 days, and a notice when a signed-in person's membership could not be read.
 export default function TrialBanner() {
-  const { ent } = useAccount();
+  const { ent, loading, email, profileOk } = useAccount();
+
+  if (!loading && email && !profileOk) {
+    return (
+      <div role="alert" className="border-b border-line bg-panel2 px-5 py-2.5 text-center text-sm">
+        You are signed in, but we could not load your membership, so Premium is not showing. Refresh the page, or sign out and back in. If it keeps happening, the site owner needs to finish the database setup.
+      </div>
+    );
+  }
   if (ent.source !== 'trial' && ent.source !== 'referral') return null;
   const d = ent.daysLeft ?? 0;
   if (d > 7) return null;

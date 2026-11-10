@@ -89,8 +89,13 @@ export default function VoicePage() {
       r.start();
       setRec('recording'); setSecs(0);
       timer.current = setInterval(() => setSecs((x) => x + 1), 1000);
-    } catch {
-      setMsg({ k: 'err', t: 'The microphone is blocked. Allow microphone access for this site in your browser, then try again.' });
+    } catch (e: any) {
+      const n = e?.name;
+      setMsg({ k: 'err', t:
+        n === 'NotAllowedError' || n === 'SecurityError' ? 'Microphone access is blocked for this site. Click the lock icon next to the web address, set Microphone to Allow, then press Start recording again.'
+        : n === 'NotFoundError' ? 'No microphone was found. Plug one in, or use the Upload tab instead.'
+        : n === 'NotReadableError' ? 'Another app is using the microphone. Close it and try again.'
+        : 'The microphone could not be started. Reload the page and try again.' });
     }
   }
   function stopRecording() { setRec('idle'); mr.current?.stop(); }
@@ -148,7 +153,8 @@ export default function VoicePage() {
           <div className="mt-5 rounded-xl border border-line bg-panel p-5 font-read text-xl leading-[1.7] sm:p-7">
             {SCRIPT.map((s, i) => <span key={i}>{s} </span>)}
           </div>
-          <div className="mt-6 flex items-center gap-5">
+          <p className="mt-4 text-sm text-mute">Your browser will ask to use your microphone the first time. Choose Allow.</p>
+          <div className="mt-4 flex items-center gap-5">
             {rec === 'idle' ? (
               <button onClick={startRecording} className="btn btn-primary !px-6 !py-3"><Icon name="mic" size={18} />{blob ? 'Record again' : 'Start recording'}</button>
             ) : (

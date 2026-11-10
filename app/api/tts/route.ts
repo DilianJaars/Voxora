@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { edgeSpeak, elevenSpeak } from '@/lib/tts';
 import { getVoice, LANGUAGES } from '@/lib/voices';
-import { supabaseAdmin, userFromRequest } from '@/lib/supabaseAdmin';
+import { noAdmin, supabaseAdmin, userFromRequest } from '@/lib/supabaseAdmin';
 import { limited, tooMany } from '@/lib/ratelimit';
 import { addCloneChars, cloneCap, monthCloneChars } from '@/lib/cloneUsage';
 
@@ -30,11 +30,12 @@ export async function POST(req: Request) {
       let spend: { admin: NonNullable<ReturnType<typeof supabaseAdmin>>; userId: string } | null = null;
       if (!userKey) {
         const u = await userFromRequest(req);
-        const admin = supabaseAdmin();
-        if (!u || !admin || !u.ent.premium) return NextResponse.json({ error: 'premium_required' }, { status: 402 });
-        const { data: own } = await admin.from('cloned_voices').select('id').eq('user_id', u.id).eq('provider_voice_id', voiceId).maybeSingle();
+        if (!u || !u.ent.premium) return NextResponse.json({ error: 'premium_required' }, { status: 402 });
+        const { data: own } = await u.db.from('cloned_voices').select('id').eq('provider_voice_id', voiceId).maybeSingle(); // row level security: only their own voices
         if (!own) return NextResponse.json({ error: 'That voice does not belong to your account.' }, { status: 403 });
-        if ((await monthCloneChars(admin, u.id)) + text.length > cloneCap()) {
+        const admin = supabaseAdmin();
+        if (!admin) return noAdmin();
+        if ((await monthCloneChars(u.db, u.id)) + text.length > cloneCap()) {
           return NextResponse.json({ error: 'You have used this month\'s allowance for your own voice. It resets on the 1st, or add your own ElevenLabs key in Settings.' }, { status: 429 });
         }
         spend = { admin, userId: u.id };

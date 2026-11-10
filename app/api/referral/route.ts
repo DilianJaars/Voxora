@@ -3,12 +3,15 @@ import { supabaseAdmin, userFromRequest } from '@/lib/supabaseAdmin';
 
 export const runtime = 'nodejs';
 
-// Referral stats for the signed-in user. The 1-month reward is granted by the DB trigger when a friend signs up with the code.
+// Referral code and friend count for the signed-in user. The 1-month reward is granted by the database when a friend signs up with the code.
 export async function GET(req: Request) {
   const u = await userFromRequest(req);
-  const admin = supabaseAdmin();
-  if (!u || !admin) return NextResponse.json({ error: 'Sign in required' }, { status: 401 });
-  const { data: me } = await admin.from('profiles').select('referral_code').eq('id', u.id).maybeSingle();
-  const { count } = await admin.from('profiles').select('id', { count: 'exact', head: true }).eq('referred_by', u.id);
-  return NextResponse.json({ code: me?.referral_code, friends: count ?? 0 });
+  if (!u) return NextResponse.json({ error: 'Sign in required' }, { status: 401 });
+  const admin = supabaseAdmin(); // counting other people's rows needs the service key; the code itself does not
+  let friends = 0;
+  if (admin) {
+    const { count } = await admin.from('profiles').select('id', { count: 'exact', head: true }).eq('referred_by', u.id);
+    friends = count ?? 0;
+  }
+  return NextResponse.json({ code: u.profile?.referral_code, friends });
 }

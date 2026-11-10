@@ -120,7 +120,7 @@ export default function Reader() {
       }
     } catch (e: any) {
       setLoading(false); setPlaying(false);
-      if (e.message === 'premium_required') setLimit('That voice is a Premium voice.');
+      if (e.message === 'premium_required') setLimit(acct.email ? 'That voice is a Premium voice.' : 'Sign in to use Premium voices.');
       else setErr(e.message || 'Could not load audio');
     }
   }, [fetchChunk, settings.speed, maxSpeed, sentences]);

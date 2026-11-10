@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin, userFromRequest } from '@/lib/supabaseAdmin';
+import { noAdmin, supabaseAdmin, userFromRequest } from '@/lib/supabaseAdmin';
 import { limited, tooMany } from '@/lib/ratelimit';
 import { cloneCap, maxVoices, monthCloneChars } from '@/lib/cloneUsage';
 
@@ -11,9 +11,8 @@ const json = (body: unknown, status = 200) => NextResponse.json(body, { status, 
 // GET: whether voice cloning is available, plus the signed-in person's allowance for this month.
 export async function GET(req: Request) {
   const u = await userFromRequest(req);
-  const admin = supabaseAdmin();
   const out: Record<string, unknown> = { available: Boolean(process.env.ELEVENLABS_API_KEY), maxVoices: maxVoices(), capChars: cloneCap(), usedChars: 0 };
-  if (u && admin) out.usedChars = await monthCloneChars(admin, u.id);
+  if (u) out.usedChars = await monthCloneChars(u.db, u.id);
   return json(out);
 }
 
@@ -22,9 +21,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   if (limited(req, 'clone', 6, 3600_000)) return tooMany();
   const u = await userFromRequest(req);
-  const admin = supabaseAdmin();
-  if (!u || !admin) return json({ error: 'Sign in to create your voice.' }, 401);
+  if (!u) return json({ error: 'Sign in to create your voice.' }, 401);
   if (!u.ent.premium) return json({ error: 'premium_required' }, 402);
+  const admin = supabaseAdmin();
+  if (!admin) return noAdmin();
 
   const form = await req.formData();
   const sample = form.get('sample') as File | null;
@@ -75,8 +75,9 @@ export async function POST(req: Request) {
 // DELETE ?id=<row id>: removes the voice, the stored recording and (when the site's key made it) the voice at ElevenLabs.
 export async function DELETE(req: Request) {
   const u = await userFromRequest(req);
+  if (!u) return json({ error: 'Sign in required' }, 401);
   const admin = supabaseAdmin();
-  if (!u || !admin) return json({ error: 'Sign in required' }, 401);
+  if (!admin) return noAdmin();
   const id = new URL(req.url).searchParams.get('id');
   if (!id) return json({ error: 'Missing voice' }, 400);
   const { data: v } = await admin.from('cloned_voices').select('id,provider_voice_id,sample_path,key_source').eq('id', id).eq('user_id', u.id).maybeSingle();
