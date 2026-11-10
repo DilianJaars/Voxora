@@ -72,6 +72,7 @@ export default function VoicePicker({ value, premium, token, custom, elevenKey, 
             </>, { voice: v.id });
         })}
       </ul>
+      <a href="/voice" className="mt-3 inline-flex items-center gap-1.5 text-sm text-mark underline underline-offset-4"><Icon name="mic" size={14} />Record your own voice</a>
     </div>
   );
 }

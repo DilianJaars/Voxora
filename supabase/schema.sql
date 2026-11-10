@@ -15,6 +15,7 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now()
 );
 alter table public.profiles enable row level security;
+drop policy if exists "own profile read" on public.profiles;
 create policy "own profile read" on public.profiles for select using (auth.uid() = id);
 -- No client-side update policy: only the service role (webhooks) changes entitlements.
 
@@ -32,9 +33,13 @@ create table if not exists public.documents (
 );
 create index if not exists documents_user_idx on public.documents(user_id, updated_at desc);
 alter table public.documents enable row level security;
+drop policy if exists "own docs select" on public.documents;
 create policy "own docs select" on public.documents for select using (auth.uid() = user_id);
+drop policy if exists "own docs insert" on public.documents;
 create policy "own docs insert" on public.documents for insert with check (auth.uid() = user_id);
+drop policy if exists "own docs update" on public.documents;
 create policy "own docs update" on public.documents for update using (auth.uid() = user_id);
+drop policy if exists "own docs delete" on public.documents;
 create policy "own docs delete" on public.documents for delete using (auth.uid() = user_id);
 
 create table if not exists public.cloned_voices (
@@ -46,6 +51,7 @@ create table if not exists public.cloned_voices (
   created_at timestamptz not null default now()
 );
 alter table public.cloned_voices enable row level security;
+drop policy if exists "own voices" on public.cloned_voices;
 create policy "own voices" on public.cloned_voices for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- New user: create profile, start the 2-month trial, and reward the referrer with 1 month.
@@ -84,6 +90,7 @@ create table if not exists public.payments (
 );
 create index if not exists payments_user_idx on public.payments(user_id, created_at desc);
 alter table public.payments enable row level security;
+drop policy if exists "own payments read" on public.payments;
 create policy "own payments read" on public.payments for select using (auth.uid() = user_id);
 -- no insert/update/delete policies: only the service role (webhooks) writes payments
 
@@ -96,6 +103,7 @@ create table if not exists public.usage_daily (
   primary key (user_id, day)
 );
 alter table public.usage_daily enable row level security;
+drop policy if exists "own usage read" on public.usage_daily;
 create policy "own usage read" on public.usage_daily for select using (auth.uid() = user_id);
 -- no write policies: counters only go up, through add_usage() below
 
@@ -112,3 +120,33 @@ begin
 end $$;
 revoke all on function public.add_usage(text, int) from public, anon;
 grant execute on function public.add_usage(text, int) to authenticated;
+
+-- ============ Own voice: private samples, quality, per-person allowance (added) ============
+alter table public.cloned_voices add column if not exists sample_path text;     -- private recording in the voice-samples bucket
+alter table public.cloned_voices add column if not exists quality jsonb;        -- analysis of the recording
+alter table public.cloned_voices add column if not exists key_source text not null default 'server';
+alter table public.usage_daily add column if not exists voice_chars int not null default 0;  -- characters read in a cloned voice
+
+-- Each person can only read their own folder in the private voice-samples bucket
+drop policy if exists "own voice samples read" on storage.objects;
+create policy "own voice samples read" on storage.objects for select to authenticated
+  using (bucket_id = 'voice-samples' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ============ Safety net: create the profile (and start the free trial) on first sign-in if the sign-up trigger did not ============
+create or replace function public.ensure_profile() returns void
+language plpgsql security definer set search_path = public as $$
+declare u record; ref_id uuid;
+begin
+  if auth.uid() is null then return; end if;
+  if exists (select 1 from public.profiles where id = auth.uid()) then return; end if;
+  select id, email, raw_user_meta_data into u from auth.users where id = auth.uid();
+  select id into ref_id from public.profiles where referral_code = lower(coalesce(u.raw_user_meta_data->>'ref', ''));
+  insert into public.profiles (id, email, referred_by) values (u.id, u.email, ref_id) on conflict do nothing;
+  if ref_id is not null and ref_id <> u.id then
+    update public.profiles
+      set referral_bonus_until = greatest(coalesce(referral_bonus_until, now()), now()) + interval '1 month'
+      where id = ref_id;
+  end if;
+end $$;
+revoke all on function public.ensure_profile() from public, anon;
+grant execute on function public.ensure_profile() to authenticated;

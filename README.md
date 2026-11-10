@@ -28,6 +28,8 @@ With **no keys at all** you get: the landing page, paste/upload/URL/YouTube/Driv
 | Personal dashboard: membership days left, months paid, payment history, today's limits, 30-day listening chart, streak, daily goal, referrals | `app/dashboard` |
 | Account security: change password, sign out of all devices, download my data, delete account, rate limits, security headers | `app/api/account/*`, `lib/ratelimit.ts`, `next.config.mjs` |
 | Reader extras: keyboard shortcuts, sleep timer, skip citations and web addresses, installable app (PWA) | `app/read/[id]`, `app/manifest.ts`, `public/sw.js` |
+| Your own voice: record a script, in-browser quality check, voice made via ElevenLabs, kept per person (private sample, dashboard list, delete) | `app/voice`, `app/api/voice-clone`, `lib/voiceAnalysis.ts` |
+| Voice reliability: retries, plain-text fallback, cache, `/api/health` check | `lib/tts.ts`, `app/api/health` |
 | Refer a friend: 1 month Premium free | DB trigger in `supabase/schema.sql`, Settings page |
 
 ## Setup for the full product
@@ -37,7 +39,8 @@ With **no keys at all** you get: the landing page, paste/upload/URL/YouTube/Driv
 3. **Trial reminders**: set `RESEND_API_KEY`, `EMAIL_FROM` and `CRON_SECRET`. On Vercel, `vercel.json` runs the job daily. On Render, add repo secrets `CRON_SECRET` and `APP_URL` and the included GitHub Action (`.github/workflows/trial-reminders.yml`) calls it daily.
 
 4. **AI summaries / notes / translate**: set `ANTHROPIC_API_KEY`. Without it, summaries fall back to a simple extractive summary and translation is disabled.
-5. **Voice cloning**: needs an ElevenLabs key with Instant Voice Cloning (server `ELEVENLABS_API_KEY`, or each user's own key in Settings). Edge TTS cannot clone voices.
+5. **Your own voice**: needs an ElevenLabs key on a plan with Instant Voice Cloning (server `ELEVENLABS_API_KEY`, or each user's own key in Settings). Edge TTS cannot clone voices. Reading in a cloned voice uses your ElevenLabs characters, so each person gets `CLONE_MONTHLY_CHARS` a month and `MAX_CLONED_VOICES` voices when your key is used.
+6. **Sign in and sign up**: in Supabase, open Authentication, URL Configuration, set the Site URL to your live address and add `<your address>/reset` to the Redirect URLs, so confirmation and password-reset emails link back to Voxora.
 
 ## Deploy on Render
 

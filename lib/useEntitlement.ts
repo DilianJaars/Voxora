@@ -13,7 +13,11 @@ export function useAccount() {
     const load = async () => {
       const { data: { session } } = await sb.auth.getSession();
       if (!session) { setState({ loading: false, ent: { premium: false, source: 'free' } }); return; }
-      const { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+      let { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+      if (!p) { // first sign-in without a profile yet: create it (this starts the free trial), then read it again
+        await sb.rpc('ensure_profile');
+        ({ data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle());
+      }
       setState({ loading: false, email: session.user.email, token: session.access_token, ent: computeEntitlement(p), referralCode: p?.referral_code, profile: p, user: { id: session.user.id, email: session.user.email, createdAt: session.user.created_at, lastSignIn: session.user.last_sign_in_at } });
     };
     load();

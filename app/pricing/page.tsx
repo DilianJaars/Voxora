@@ -6,7 +6,7 @@ import { useAccount } from '@/lib/useEntitlement';
 import { Icon } from '@/components/Icons';
 
 const FREE = ['5 natural voices (American, British, South African)', '30 minutes of listening a day', '2 MP3 downloads a day', '3 web, YouTube or photo imports a day', 'Speed up to 2.5x', 'A library of 10 documents', 'Night mode and a dyslexia friendly font'];
-const PREMIUM = ['Unlimited listening', 'All 24 voices, including Australian', 'Voice cloning from a 10-second sample', 'Unlimited MP3 downloads', 'Unlimited library and file size', 'Unlimited web, YouTube and photo imports', 'Offline listening and background play', 'Speed up to 3.5x and Smart Speed', 'Summaries and notes', 'Translate and read in another language', 'Share a link to your audio'];
+const PREMIUM = ['Unlimited listening', 'All 24 voices, including Australian', 'Your own voice: record a short script and have books read in it', 'Unlimited MP3 downloads', 'Unlimited library and file size', 'Unlimited web, YouTube and photo imports', 'Offline listening and background play', 'Speed up to 3.5x and Smart Speed', 'Summaries and notes', 'Translate and read in another language', 'Share a link to your audio'];
 
 const List = ({ items }: { items: string[] }) => (
   <ul className="mt-6 space-y-3 text-sm">

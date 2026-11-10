@@ -56,7 +56,7 @@ export default function Home() {
         <div className="mx-auto grid max-w-6xl gap-10 px-5 py-20 lg:grid-cols-[1fr_1.6fr] lg:gap-16">
           <div>
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Voices that sound like people</h2>
-            <p className="mt-4 max-w-sm text-mute">Natural pacing, real pauses, and the right tone for questions and exclamations. Five voices are free, and Premium adds {premiumVoices} more in American, British, Australian and South African accents, plus voice cloning from a 10-second sample.</p>
+            <p className="mt-4 max-w-sm text-mute">Natural pacing, real pauses, and the right tone for questions and exclamations. Five voices are free, and Premium adds {premiumVoices} more in American, British, Australian and South African accents, plus your own voice, made from a short recording.</p>
           </div>
           <LandingVoices />
         </div>

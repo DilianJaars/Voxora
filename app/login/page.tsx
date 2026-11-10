@@ -28,6 +28,15 @@ function Form() {
     router.push('/dashboard');
   }
 
+  async function forgot() {
+    const sb = supabaseBrowser();
+    if (!sb || !email) return setMsg('Type your email above first, then choose Forgot password.');
+    setBusy(true); setMsg('');
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: `${location.origin}/reset` });
+    setBusy(false);
+    setMsg(error ? error.message : 'If that email has an account, a reset link is on its way.');
+  }
+
   if (!supabaseEnabled) return <p className="border-l-2 border-mark bg-panel px-4 py-3 text-sm text-mute">Accounts are not switched on yet. You can still use Voxora without one.</p>;
 
   const seg = (on: boolean) => `flex-1 rounded-md py-2 text-sm transition-colors ${on ? 'bg-mark font-semibold text-onmark' : 'text-mute hover:text-fg'}`;
@@ -40,8 +49,9 @@ function Form() {
       <label className="block text-sm">Email<input className="input mt-1.5" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
       <label className="block text-sm">Password<input className="input mt-1.5" type="password" required minLength={6} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} /></label>
       {mode === 'signup' && <label className="block text-sm">Referral code, if you have one<input className="input mt-1.5" value={ref} onChange={(e) => setRef(e.target.value)} /></label>}
+      {mode === 'signin' && <button type="button" onClick={forgot} className="btn-text">Forgot password?</button>}
       <button disabled={busy} className="btn btn-primary w-full !py-3">{busy ? 'One moment' : mode === 'signup' ? `Start ${PLAN.trialMonths} free months` : 'Sign in'}</button>
-      {msg && <p role="alert" className="text-sm text-danger">{msg}</p>}
+      {msg && <p role="alert" className="text-sm text-mute">{msg}</p>}
     </form>
   );
 }

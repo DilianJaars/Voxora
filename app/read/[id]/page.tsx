@@ -8,6 +8,7 @@ import { FREE_LIMITS } from '@/lib/plans';
 import { getVoice, LANGUAGES, VOICES } from '@/lib/voices';
 import { useAccount } from '@/lib/useEntitlement';
 import { supabaseBrowser } from '@/lib/supabase';
+import { syncMyVoices } from '@/lib/myvoices';
 import VoicePicker from '@/components/VoicePicker';
 import LimitBanner from '@/components/LimitBanner';
 import { Icon, PauseIcon, PlayIcon, Skip } from '@/components/Icons';
@@ -59,6 +60,7 @@ export default function Reader() {
   }, [id]);
 
   const update = (patch: Partial<Settings>) => setS(setSettings(patch));
+  useEffect(() => { if (acct.user) syncMyVoices(); }, [acct.user]);
   const isCustom = settings.voice.startsWith('custom:');
   const authHeader = (): Record<string, string> => (acct.token ? { authorization: `Bearer ${acct.token}` } : {});
 
@@ -72,7 +74,8 @@ export default function Reader() {
       const c = chunksRef.current[i];
       const body: any = { text: settings.cleanText ? cleanForSpeech(c.text) || c.text : c.text, voice: settings.voice, compact: premium && settings.smartSpeed, language: lang || undefined };
       if (isCustom) { body.elevenVoiceId = settings.voice.slice(7); body.elevenKey = settings.elevenKey; }
-      const r = await fetch('/api/tts', { method: 'POST', headers: { 'content-type': 'application/json', ...authHeader() }, body: JSON.stringify(body) });
+      let r = await fetch('/api/tts', { method: 'POST', headers: { 'content-type': 'application/json', ...authHeader() }, body: JSON.stringify(body) });
+      if (r.status >= 500) { await new Promise((x) => setTimeout(x, 800)); r = await fetch('/api/tts', { method: 'POST', headers: { 'content-type': 'application/json', ...authHeader() }, body: JSON.stringify(body) }); }
       if (r.status === 402) throw new Error('premium_required');
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Voice failed');
       return URL.createObjectURL(await r.blob());

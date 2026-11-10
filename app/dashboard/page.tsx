@@ -6,12 +6,14 @@ import { supabaseBrowser, supabaseEnabled } from '@/lib/supabase';
 import { useAccount } from '@/lib/useEntitlement';
 import { FREE_LIMITS, PLAN } from '@/lib/plans';
 import { getSettings, listDocs, setSettings } from '@/lib/store';
+import { syncMyVoices } from '@/lib/myvoices';
 import { fmtTime } from '@/lib/text';
 import { Icon } from '@/components/Icons';
 
 type Usage = { day: string; listen_seconds: number; downloads: number; imports: number };
 type Payment = { id: string; provider: string; amount_cents: number | null; currency: string; months: number; created_at: string };
 
+type MyVoice = { id: string; name: string; provider_voice_id: string; sample_path: string | null; quality: any; key_source: string; created_at: string };
 const DAY = 86400000;
 const fmtDate = (s?: string | null) => (s ? new Date(s).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : 'Not set');
 const money = (c: number | null, cur: string) => (c == null ? 'Not recorded' : `${cur === 'ZAR' ? 'R' : cur + ' '}${(c / 100).toFixed(2)}`);
@@ -45,6 +47,8 @@ export default function Dashboard() {
   const [docCount, setDocCount] = useState(0);
   const [voices, setVoices] = useState(0);
   const [ref, setRef] = useState<{ code?: string; friends?: number }>({});
+  const [myVoices, setMyVoices] = useState<MyVoice[]>([]);
+  const [cfg, setCfg] = useState<{ available: boolean; maxVoices: number; capChars: number; usedChars: number } | null>(null);
   const [goal, setGoal] = useState(20);
   const [pw, setPw] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -61,6 +65,8 @@ export default function Dashboard() {
     sb.from('usage_daily').select('day,listen_seconds,downloads,imports').gte('day', since).order('day').then(({ data }) => setUsage((data as Usage[]) || []));
     sb.from('payments').select('*').order('created_at', { ascending: false }).then(({ data }) => setPayments((data as Payment[]) || []));
     sb.from('cloned_voices').select('id', { count: 'exact', head: true }).then(({ count }) => setVoices(count || 0));
+    loadVoices();
+    fetch('/api/voice-clone', { headers: { authorization: `Bearer ${acct.token}` } }).then((r) => r.json()).then(setCfg).catch(() => {});
     listDocs().then((d) => setDocCount(d.length));
     fetch('/api/referral', { headers: { authorization: `Bearer ${acct.token}` } }).then((r) => r.json()).then(setRef).catch(() => {});
   }, [acct.user, acct.token]);
@@ -103,6 +109,25 @@ export default function Dashboard() {
     { name: 'Paid Premium', until: p?.premium_until },
   ];
 
+  function loadVoices() {
+    supabaseBrowser()?.from('cloned_voices').select('id,name,provider_voice_id,sample_path,quality,key_source,created_at').order('created_at', { ascending: false })
+      .then(({ data }) => setMyVoices((data as MyVoice[]) || []));
+  }
+  async function playSample(path: string) {
+    const { data } = await supabaseBrowser()!.storage.from('voice-samples').createSignedUrl(path, 300);
+    if (data?.signedUrl) new Audio(data.signedUrl).play();
+  }
+  async function previewVoice(v: MyVoice) {
+    const r = await fetch('/api/tts', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${acct.token}` }, body: JSON.stringify({ text: 'This is my own voice, reading to me.', preview: true, elevenVoiceId: v.provider_voice_id, elevenKey: getSettings().elevenKey }) });
+    if (!r.ok) return setMsg({ k: 'err', t: (await r.json().catch(() => ({}))).error || 'Could not play the voice.' });
+    new Audio(URL.createObjectURL(await r.blob())).play();
+  }
+  async function removeVoice(v: MyVoice) {
+    const r = await fetch(`/api/voice-clone?id=${v.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${acct.token}` } });
+    if (!r.ok) return setMsg({ k: 'err', t: 'Could not delete that voice.' });
+    if (getSettings().voice === 'custom:' + v.provider_voice_id) setSettings({ voice: 'jenny' });
+    loadVoices(); syncMyVoices();
+  }
   async function api(path: string, init?: RequestInit) {
     return fetch(path, { ...init, headers: { ...(init?.headers || {}), authorization: `Bearer ${acct.token}` } });
   }
@@ -208,6 +233,31 @@ export default function Dashboard() {
               {[10, 20, 30, 45, 60, 90].map((m) => <option key={m} value={m}>{m} minutes a day</option>)}
             </select>
           </label>
+        </div>
+      </Section>
+
+      <Section title="My voices" note="Voices made from your own recordings. They are saved to your account, so only you can see and use them, on any device.">
+        {myVoices.length === 0 ? (
+          <p className="text-sm text-mute">You have not made a voice yet. <Link href="/voice" className="text-mark underline underline-offset-4">Record a short script</Link> and your books and articles can be read in your own voice.</p>
+        ) : (
+          <ul className="divide-y divide-line border-y border-line">
+            {myVoices.map((v) => (
+              <li key={v.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-4">
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold">{v.name}</div>
+                  <div className="text-sm text-mute">Made {fmtDate(v.created_at)}{v.quality?.verdict ? `, recording quality: ${v.quality.verdict === 'good' ? 'good' : v.quality.verdict === 'ok' ? 'usable' : 'low'}` : ''}</div>
+                </div>
+                <button className="btn btn-quiet !py-1.5" onClick={() => previewVoice(v)}>Hear it</button>
+                {v.sample_path && <button className="btn btn-quiet !py-1.5" onClick={() => playSample(v.sample_path!)}>My recording</button>}
+                <button className="btn btn-primary !py-1.5" onClick={() => { setSettings({ voice: 'custom:' + v.provider_voice_id }); router.push('/app'); }}>Use for reading</button>
+                <button className="p-2 text-mute transition-colors hover:text-danger" onClick={() => removeVoice(v)} aria-label={`Delete ${v.name}`}><Icon name="trash" size={18} /></button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+          <Link href="/voice" className="btn btn-quiet"><Icon name="mic" size={16} />Record a new voice</Link>
+          {cfg?.available && <span className="text-sm text-mute">Own-voice reading this month: {Math.round(cfg.usedChars / 1000)}k of {Math.round(cfg.capChars / 1000)}k characters. Up to {cfg.maxVoices} voices.</span>}
         </div>
       </Section>
 
