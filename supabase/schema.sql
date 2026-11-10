@@ -4,7 +4,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text,
   premium_until timestamptz,                         -- paid subscription end
-  trial_ends_at timestamptz not null default (now() + interval '2 months'),  -- 2-month free trial for new customers
+  trial_ends_at timestamptz,                         -- set once by start_trial(): 2 months of Premium, no card
   referral_bonus_until timestamptz,                  -- extra free months from referrals
   referral_code text unique not null default substr(md5(random()::text || clock_timestamp()::text), 1, 8),
   referred_by uuid references public.profiles(id),
@@ -150,3 +150,23 @@ begin
 end $$;
 revoke all on function public.ensure_profile() from public, anon;
 grant execute on function public.ensure_profile() to authenticated;
+
+-- ============ Start Premium free, no card (added) ============
+-- Older installs had an automatic trial at sign-up. Existing dates are kept; new accounts start it themselves.
+alter table public.profiles alter column trial_ends_at drop not null;
+alter table public.profiles alter column trial_ends_at drop default;
+
+create or replace function public.start_trial() returns timestamptz
+language plpgsql security definer set search_path = public as $$
+declare ends timestamptz;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  perform public.ensure_profile();
+  update public.profiles set trial_ends_at = now() + interval '2 months'
+    where id = auth.uid() and trial_ends_at is null
+    returning trial_ends_at into ends;
+  if ends is null then raise exception 'trial_already_used'; end if;   -- one free trial per account
+  return ends;
+end $$;
+revoke all on function public.start_trial() from public, anon;
+grant execute on function public.start_trial() to authenticated;

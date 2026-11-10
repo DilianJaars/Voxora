@@ -7,6 +7,7 @@ import { useAccount } from '@/lib/useEntitlement';
 import { FREE_LIMITS, PLAN } from '@/lib/plans';
 import { getSettings, listDocs, setSettings } from '@/lib/store';
 import { syncMyVoices } from '@/lib/myvoices';
+import { startFreePremium } from '@/lib/trial';
 import { fmtTime } from '@/lib/text';
 import { Icon } from '@/components/Icons';
 
@@ -54,6 +55,7 @@ export default function Dashboard() {
   const [confirm, setConfirm] = useState('');
   const [msg, setMsg] = useState<{ k: 'ok' | 'err'; t: string } | null>(null);
   const [busy, setBusy] = useState('');
+  const [starting, setStarting] = useState(false);
 
   useEffect(() => setGoal(getSettings().goalMin), []);
   useEffect(() => { if (!acct.loading && supabaseEnabled && !acct.email) router.replace('/login'); }, [acct.loading, acct.email, router]);
@@ -101,7 +103,7 @@ export default function Dashboard() {
   const t = (v?: string | null) => (v ? new Date(v).getTime() : 0);
   const statusLabel = { paid: 'Premium', trial: 'Free trial', referral: 'Referral bonus', free: 'Free plan' }[acct.ent.source];
   const end = t(acct.ent.endsAt);
-  const start = acct.ent.source === 'trial' ? t(p?.created_at) : acct.ent.source === 'paid' ? t(payments[0]?.created_at) || end - 30 * DAY : now;
+  const start = acct.ent.source === 'trial' ? end - PLAN.trialMonths * 30.44 * DAY : acct.ent.source === 'paid' ? t(payments[0]?.created_at) || end - 30 * DAY : now;
   const progress = end > start ? Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100)) : 0;
   const coverage = [
     { name: 'Free trial', until: p?.trial_ends_at },
@@ -127,6 +129,12 @@ export default function Dashboard() {
     if (!r.ok) return setMsg({ k: 'err', t: 'Could not delete that voice.' });
     if (getSettings().voice === 'custom:' + v.provider_voice_id) setSettings({ voice: 'jenny' });
     loadVoices(); syncMyVoices();
+  }
+  async function startTrial() {
+    setMsg(null); setStarting(true);
+    const r = await startFreePremium();
+    setStarting(false);
+    setMsg(r.ok ? { k: 'ok', t: `Premium is on for ${PLAN.trialMonths} months. Add payment any time before it ends.` } : { k: 'err', t: r.error || 'Could not start free Premium.' });
   }
   async function api(path: string, init?: RequestInit) {
     return fetch(path, { ...init, headers: { ...(init?.headers || {}), authorization: `Bearer ${acct.token}` } });
@@ -166,6 +174,17 @@ export default function Dashboard() {
       <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl">Your dashboard</h1>
       <p className="mt-2 text-mute">{acct.email}. Member since {fmtDate(acct.user?.createdAt)}.</p>
 
+      {acct.trialAvailable && (
+        <section className="mt-10 rounded-2xl border border-mark bg-panel p-6 sm:p-8">
+          <h2 className="text-2xl font-bold tracking-tight">Start Premium free for {PLAN.trialMonths} months</h2>
+          <p className="mt-2 max-w-lg text-mute">No card and no payment method. Everything in Premium is unlocked right away. You choose how to pay later, and we email you before the free period ends.</p>
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <button onClick={startTrial} disabled={starting} className="btn btn-primary !px-6 !py-3">{starting ? 'Starting Premium' : 'Start free Premium'}</button>
+            <Link href="/pricing" className="btn-text">See what is included</Link>
+          </div>
+        </section>
+      )}
+
       {/* Membership */}
       <section className="mt-10 rounded-2xl border border-line bg-panel p-6 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-6">
@@ -189,6 +208,11 @@ export default function Dashboard() {
           <div><dt className="text-mute">Total paid</dt><dd className="mt-0.5 text-lg font-semibold tabular-nums">{Object.keys(spent).length ? Object.entries(spent).map(([c, v]) => money(v, c)).join(', ') : 'R0.00'}</dd></div>
           <div><dt className="text-mute">Cloned voices</dt><dd className="mt-0.5 text-lg font-semibold tabular-nums">{voices}</dd></div>
         </dl>
+        {acct.ent.source === 'trial' && (
+          <p className="mt-6 border-l-2 border-mark pl-4 text-sm">
+            No payment method added yet. Premium stops on {fmtDate(acct.ent.endsAt)} unless you add one. <Link href="/pricing" className="font-semibold text-mark underline underline-offset-4">Add payment now or later</Link>
+          </p>
+        )}
         <ul className="mt-8 divide-y divide-line border-y border-line text-sm">
           {coverage.map((c) => {
             const live = t(c.until) > now;

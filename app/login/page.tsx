@@ -50,7 +50,7 @@ function Form() {
       <label className="block text-sm">Password<input className="input mt-1.5" type="password" required minLength={6} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} /></label>
       {mode === 'signup' && <label className="block text-sm">Referral code, if you have one<input className="input mt-1.5" value={ref} onChange={(e) => setRef(e.target.value)} /></label>}
       {mode === 'signin' && <button type="button" onClick={forgot} className="btn-text">Forgot password?</button>}
-      <button disabled={busy} className="btn btn-primary w-full !py-3">{busy ? 'One moment' : mode === 'signup' ? `Start ${PLAN.trialMonths} free months` : 'Sign in'}</button>
+      <button disabled={busy} className="btn btn-primary w-full !py-3">{busy ? 'One moment' : mode === 'signup' ? 'Create account' : 'Sign in'}</button>
       {msg && <p role="alert" className="text-sm text-mute">{msg}</p>}
     </form>
   );
@@ -59,8 +59,8 @@ function Form() {
 export default function Login() {
   return (
     <div className="mx-auto max-w-md px-5 py-14 sm:py-20">
-      <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Start with {PLAN.trialMonths} months of Premium</h1>
-      <p className="mb-8 mt-3 text-mute">No card needed. We email you before the trial ends.</p>
+      <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Create your account</h1>
+      <p className="mb-8 mt-3 text-mute">Then start {PLAN.trialMonths} months of Premium free from your dashboard. No card needed, and you choose how to pay later.</p>
       <Suspense><Form /></Suspense>
     </div>
   );

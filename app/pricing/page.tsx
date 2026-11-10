@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { PLAN } from '@/lib/plans';
 import { useAccount } from '@/lib/useEntitlement';
+import { startFreePremium } from '@/lib/trial';
 import { Icon } from '@/components/Icons';
 
 const FREE = ['5 natural voices (American, British, South African)', '30 minutes of listening a day', '2 MP3 downloads a day', '3 web, YouTube or photo imports a day', 'Speed up to 2.5x', 'A library of 10 documents', 'Night mode and a dyslexia friendly font'];
@@ -18,17 +19,26 @@ export default function Pricing() {
   const acct = useAccount();
   const [yearly, setYearly] = useState(false);
   const [provider, setProvider] = useState<'payfast' | 'yoco' | 'stripe'>('payfast');
-  const [msg, setMsg] = useState('');
+  const [showPay, setShowPay] = useState(false);
+  const [msg, setMsg] = useState<{ k: 'ok' | 'err'; t: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [starting, setStarting] = useState(false);
+
+  async function startFree() {
+    setMsg(null); setStarting(true);
+    const r = await startFreePremium();
+    setStarting(false);
+    setMsg(r.ok ? { k: 'ok', t: `Premium is on for ${PLAN.trialMonths} months. Add payment any time before it ends.` } : { k: 'err', t: r.error || 'Could not start free Premium.' });
+  }
 
   async function checkout() {
-    setMsg('');
-    if (!acct.token) { setMsg('Create an account first. It takes seconds and starts your 2 free months.'); return; }
+    setMsg(null);
+    if (!acct.token) { setMsg({ k: 'err', t: 'Create an account first. It takes seconds.' }); return; }
     setBusy(true);
     const r = await fetch('/api/checkout', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${acct.token}` }, body: JSON.stringify({ plan: yearly ? 'yearly' : 'monthly', provider }) });
     const j = await r.json();
     setBusy(false);
-    if (!r.ok) return setMsg(j.error || 'Checkout failed. Try again.');
+    if (!r.ok) return setMsg({ k: 'err', t: j.error || 'Checkout failed. Try again.' });
     if (j.url) return void (location.href = j.url);
     if (j.form) {
       const f = document.createElement('form'); f.method = 'POST'; f.action = j.form.action;
@@ -38,11 +48,14 @@ export default function Pricing() {
   }
 
   const seg = (on: boolean) => `rounded-md px-4 py-2 text-sm transition-colors ${on ? 'bg-mark font-semibold text-onmark' : 'text-mute hover:text-fg'}`;
+  const signedIn = Boolean(acct.email);
+  const onTrial = acct.ent.source === 'trial';
+  const offerFree = signedIn && acct.trialAvailable && !showPay;
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-12 sm:py-16">
       <h1 className="max-w-xl text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">Everything for R{PLAN.monthlyZAR} a month</h1>
-      <p className="mt-4 max-w-xl text-lg text-mute">New accounts get Premium free for {PLAN.trialMonths} months. We email you before it ends, and never charge a card without you choosing to pay.</p>
+      <p className="mt-4 max-w-xl text-lg text-mute">Start Premium free for {PLAN.trialMonths} months with no card and no payment method. Add payment later, and we email you before the free period ends.</p>
 
       <div className="mt-8 inline-flex rounded-lg border border-line p-1">
         <button onClick={() => setYearly(false)} className={seg(!yearly)}>Monthly</button>
@@ -62,23 +75,37 @@ export default function Pricing() {
           <div className="mt-2 text-5xl font-extrabold tracking-tight">R{yearly ? PLAN.yearlyZAR : PLAN.monthlyZAR}<span className="text-lg font-medium text-mute"> a {yearly ? 'year' : 'month'}</span></div>
           <List items={PREMIUM} />
 
-          {acct.ent.source === 'paid' ? (
-            <p className="mt-8 border-l-2 border-ok bg-panel px-4 py-3 text-sm">You have Premium until {new Date(acct.ent.endsAt!).toLocaleDateString()}.</p>
-          ) : (
-            <div className="mt-8">
-              {acct.ent.source === 'trial' && <p className="mb-4 text-sm text-mute">Your free trial has {acct.ent.daysLeft} days left. Upgrade now to keep Premium without a break.</p>}
-              <div className="mb-4 grid grid-cols-3 gap-1.5 text-xs">
-                {([['payfast', 'PayFast or SnapScan'], ['yoco', 'Card with Yoco'], ['stripe', 'International card']] as const).map(([k, l]) => (
-                  <button key={k} onClick={() => setProvider(k)} aria-pressed={provider === k} className={`rounded-lg border px-2 py-2.5 transition-colors ${provider === k ? 'border-mark text-fg' : 'border-line text-mute hover:text-fg'}`}>{l}</button>
-                ))}
-              </div>
-              <button disabled={busy} onClick={checkout} className="btn btn-primary w-full !py-3.5 text-base">{busy ? 'Opening checkout' : 'Upgrade to Premium'}</button>
-              {msg && <p role="alert" className="mt-3 text-sm text-danger">{msg}</p>}
-            </div>
-          )}
+          <div className="mt-8">
+            {acct.ent.source === 'paid' ? (
+              <p className="border-l-2 border-ok bg-panel px-4 py-3 text-sm">You have Premium until {new Date(acct.ent.endsAt!).toLocaleDateString()}.</p>
+            ) : !signedIn ? (
+              <>
+                <Link href="/login" className="btn btn-primary w-full !py-3.5 text-base">Create an account to start free</Link>
+                <p className="mt-3 text-sm text-mute">No card needed. You start Premium from your dashboard.</p>
+              </>
+            ) : offerFree ? (
+              <>
+                <button disabled={starting} onClick={startFree} className="btn btn-primary w-full !py-3.5 text-base">{starting ? 'Starting Premium' : `Start Premium free for ${PLAN.trialMonths} months`}</button>
+                <p className="mt-3 text-sm text-mute">No card and no payment method. You pick how to pay later, and we remind you before it ends.</p>
+                <button onClick={() => setShowPay(true)} className="btn-text mt-3">Pay now instead</button>
+              </>
+            ) : (
+              <>
+                {onTrial && <p className="mb-4 text-sm text-mute">Your free Premium has {acct.ent.daysLeft} days left and ends on {new Date(acct.ent.endsAt!).toLocaleDateString()}. Paying now is optional, and extends Premium from that date.</p>}
+                <div className="mb-4 grid grid-cols-3 gap-1.5 text-xs">
+                  {([['payfast', 'PayFast or SnapScan'], ['yoco', 'Card with Yoco'], ['stripe', 'International card']] as const).map(([k, l]) => (
+                    <button key={k} onClick={() => setProvider(k)} aria-pressed={provider === k} className={`rounded-lg border px-2 py-2.5 transition-colors ${provider === k ? 'border-mark text-fg' : 'border-line text-mute hover:text-fg'}`}>{l}</button>
+                  ))}
+                </div>
+                <button disabled={busy} onClick={checkout} className="btn btn-primary w-full !py-3.5 text-base">{busy ? 'Opening checkout' : onTrial ? 'Add payment now' : 'Upgrade to Premium'}</button>
+                {showPay && acct.trialAvailable && <button onClick={() => setShowPay(false)} className="btn-text mt-3">Start free instead</button>}
+              </>
+            )}
+            {msg && <p role={msg.k === 'err' ? 'alert' : 'status'} className={`mt-3 text-sm ${msg.k === 'err' ? 'text-danger' : 'text-ok'}`}>{msg.t}</p>}
+          </div>
         </section>
       </div>
-      <p className="mt-12 text-sm text-mute">Premium unlocks the moment your payment clears.</p>
+      <p className="mt-12 text-sm text-mute">Paid Premium unlocks the moment your payment clears. One free period per account.</p>
     </div>
   );
 }

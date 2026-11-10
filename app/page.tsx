@@ -30,7 +30,7 @@ export default function Home() {
             <Link href="/app" className="btn btn-primary !px-6 !py-3 text-base">Start listening</Link>
             <Link href="/login" className="btn btn-quiet !px-6 !py-3 text-base">Get {PLAN.trialMonths} months of Premium free</Link>
           </div>
-          <p className="mt-4 max-w-md text-sm text-mute">New accounts start with Premium for {PLAN.trialMonths} months, no card needed. We email you before it ends.</p>
+          <p className="mt-4 max-w-md text-sm text-mute">Start Premium free for {PLAN.trialMonths} months from your dashboard. No card, no payment method. Add payment later, and we email you before it ends.</p>
         </div>
         <LiveDemo />
       </section>

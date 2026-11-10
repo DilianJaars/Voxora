@@ -10,24 +10,25 @@ type Account = {
   token?: string;
   ent: Entitlement;
   profileOk: boolean;             // false when signed in but the membership record could not be read
+  trialAvailable: boolean;        // signed in and has not started the free Premium period yet
   referralCode?: string;
   user?: { id: string; email?: string; createdAt?: string; lastSignIn?: string };
   profile?: any;
 };
 
 export function useAccount() {
-  const [state, setState] = useState<Account>({ loading: true, ent: FREE, profileOk: true });
+  const [state, setState] = useState<Account>({ loading: true, ent: FREE, profileOk: true, trialAvailable: false });
 
   useEffect(() => {
     const sb = supabaseBrowser();
-    if (!sb) { setState({ loading: false, ent: FREE, profileOk: true }); return; }
+    if (!sb) { setState({ loading: false, ent: FREE, profileOk: true, trialAvailable: false }); return; }
     let alive = true;
 
     const load = async () => {
       try {
         const { data: { session } } = await sb.auth.getSession();
         if (!alive) return;
-        if (!session) { setState({ loading: false, ent: FREE, profileOk: true }); return; }
+        if (!session) { setState({ loading: false, ent: FREE, profileOk: true, trialAvailable: false }); return; }
 
         // Signed in: make that known straight away, then fetch the membership.
         const user = { id: session.user.id, email: session.user.email, createdAt: session.user.created_at, lastSignIn: session.user.last_sign_in_at };
@@ -40,7 +41,7 @@ export function useAccount() {
           ({ data: p } = await read());
         }
         if (!alive) return;
-        setState((s) => ({ ...s, loading: false, ent: computeEntitlement(p), profile: p, referralCode: p?.referral_code, profileOk: Boolean(p) }));
+        setState((s) => ({ ...s, loading: false, ent: computeEntitlement(p), profile: p, referralCode: p?.referral_code, profileOk: Boolean(p), trialAvailable: Boolean(p) && !p.trial_ends_at }));
       } catch {
         if (alive) setState((s) => ({ ...s, loading: false, profileOk: false }));
       }
@@ -48,7 +49,9 @@ export function useAccount() {
 
     load();
     const { data: sub } = sb.auth.onAuthStateChange(() => { load(); });
-    return () => { alive = false; sub.subscription.unsubscribe(); };
+    const onMembership = () => { load(); };
+    window.addEventListener('voxora:membership', onMembership);
+    return () => { alive = false; sub.subscription.unsubscribe(); window.removeEventListener('voxora:membership', onMembership); };
   }, []);
 
   return state;
